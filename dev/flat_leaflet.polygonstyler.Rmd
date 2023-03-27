@@ -1,0 +1,199 @@
+---
+title: "flat_minimal.Rmd empty"
+output: html_document
+editor_options: 
+  chunk_output_type: console
+---
+
+```{r development, include=FALSE}
+library(leaflet)
+library(htmltools)
+```
+
+<!--
+ You need to run the 'description' chunk in the '0-dev_history.Rmd' file before continuing your code there.
+-->
+
+# setStyle
+
+```{r function-setStyle}
+#' setStyle
+#' 
+#' Allow to use `setShapeStyle` function into a shiny app
+#'
+#' @importFrom htmltools HTML tags
+#' @export
+#'
+#' @examples
+setStyle <- function(){tags$head(
+  tags$script(HTML(
+    '
+window.LeafletWidget.methods.setStyle = function(category, layerId, style){
+  var map = this;
+  if (!layerId){
+    return;
+  } else if (!(typeof(layerId) === "object" && layerId.length)){ // in case a single layerid is given
+    layerId = [layerId];
+  }
+
+  //convert columnstore to row store
+  style = HTMLWidgets.dataframeToD3(style);
+  //console.log(style);
+
+  layerId.forEach(function(d,i){
+    var layer = map.layerManager.getLayer(category, d);
+    if (layer){ // or should this raise an error?
+      layer.setStyle(style[i]);
+    }
+  });
+};
+
+window.LeafletWidget.methods.setRadius = function(layerId, radius){
+  var map = this;
+  if (!layerId){
+    return;
+  } else if (!(typeof(layerId) === "object" && layerId.length)){ // in case a single layerid is given
+    layerId = [layerId];
+    radius = [radius];
+  }
+
+  layerId.forEach(function(d,i){
+    var layer = map.layerManager.getLayer("marker", d);
+    if (layer){ // or should this raise an error?
+      layer.setRadius(radius[i]);
+    }
+  });
+};
+'
+  ))
+)
+}
+```
+
+# setShapeStyle
+
+```{r function-setShapeStyle}
+#' setShapeStyle
+#'
+#' @param map map object
+#' @param data data
+#' @param layerId layerId
+#' @param stroke stroke
+#' @param color color
+#' @param weight weight
+#' @param opacity opacity
+#' @param fill fill
+#' @param fillColor fill color
+#' @param fillOpacity fill opacity
+#' @param dashArray dash array
+#' @param smoothFactor smooth factor
+#' @param noClip no clip
+#' @param options options
+#' @param label label
+#'
+#' @return
+#' @importFrom leaflet evalFormula invokeMethod filterNULL getMapData
+#' @export
+#'
+#' @examples
+setShapeStyle <- function( map, data = getMapData(map), layerId,
+                           stroke = NULL, color = NULL,
+                           weight = NULL, opacity = NULL,
+                           fill = NULL, fillColor = NULL,
+                           fillOpacity = NULL, dashArray = NULL,
+                           smoothFactor = NULL, noClip = NULL,
+                           options = NULL, label = NULL
+){
+  options <- c(list(layerId = layerId),
+               options,
+               filterNULL(list(stroke = stroke, color = color,
+                               weight = weight, opacity = opacity,
+                               fill = fill, fillColor = fillColor,
+                               fillOpacity = fillOpacity, dashArray = dashArray,
+                               smoothFactor = smoothFactor, noClip = noClip, label = label
+               )))
+  options <- evalFormula(options, data = data)
+  options <- do.call(data.frame, c(options, list(stringsAsFactors=FALSE)))
+  
+  layerId <- options[[1]]
+  style <- options[-1] 
+  
+  invokeMethod(map, data, "setStyle", "shape", layerId, style);
+}
+```
+
+# setLabel
+
+```{r function-setLabel}
+#' setLabel
+#' 
+#' Allow to use `setShapeLabel` function into a shiny app
+#'
+#' @return leaflet map object
+#' @importFrom htmltools HTML tags
+#' @export 
+#'
+#' @examples 
+setLabel <-  function(){tags$head(
+  tags$script(HTML(
+    '
+  window.LeafletWidget.methods.setLabel = function(category, layerId, label){
+  var map = this;
+  if (!layerId){
+    return;
+  } else if (!(typeof(layerId) === "object" && layerId.length)){ // in case a single layerid is given
+    layerId = [layerId];
+  }
+  layerId.forEach(function(d,i){
+    var layer = map.layerManager.getLayer(category, d);
+    if (layer){ // or should this raise an error?
+        // layer.unbindTooltip();
+      // the object subsetting to get the integer array and casting to string is what I added
+      layer.bindTooltip(label[i]);
+      // layer.options.tooltip = label[i].toString()
+    }
+  });
+};  
+    '
+  ))
+)
+}
+```
+
+# setShapeLabel
+
+```{r function-setShapeLabel}
+#' setShapeLabel
+#'
+#' @param map map object
+#' @param data data
+#' @param layerId layerId
+#' @param label label
+#' @param options options
+#'
+#' @return leaflet map object
+#' @importFrom leaflet getMapData filterNULL evalFormula invokeMethod
+#' @export
+#'
+#' @examples
+setShapeLabel <- function(map, data = getMapData(map), layerId,
+                          label = NULL,
+                          options = NULL) {
+  options <- c(
+    list(layerId = layerId),
+    options,
+    filterNULL(list(label = label))
+  )
+  # evaluate all options
+  options <- evalFormula(options, data = data)
+  # typo fixed in this line
+  invokeMethod(map, data, "setLabel", "shape", layerId, label)
+}
+```
+
+
+```{r development-inflate, eval=FALSE}
+# Run but keep eval=FALSE to avoid infinite loop
+# Execute in the console directly
+fusen::inflate(flat_file = "dev/flat_leaflet.polygonstyler.Rmd", vignette_name = "leaflet.polygonstyler")
+```
